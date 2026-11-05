@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from '../context/AuthContext';
 import { FarmProvider } from '../context/FarmContext';
 
 SplashScreen.preventAutoHideAsync();
@@ -20,18 +21,20 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <FarmProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="farm/[id]"
-              options={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            />
-          </Stack>
-        </FarmProvider>
+        <AuthProvider>
+          <FarmProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen
+                name="farm/[id]"
+                options={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              />
+            </Stack>
+          </FarmProvider>
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -39,7 +41,17 @@ const POPULAR_CULTIVARS = [
 export default function FarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { farms, addTree } = useFarms();
+  const { farms, addTree, refreshFarms, isLoading } = useFarms();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshFarms();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const farm = farms.find((f) => f._id === id) || farms[0];
   const trees = farm?.trees || [];
@@ -65,6 +77,9 @@ export default function FarmDetailScreen() {
       await addTree(farm._id, newTreeId.trim(), newCultivar);
       setNewTreeId('');
       setAddTreeModalVisible(false);
+      Alert.alert('Tree Twin Registered', `Tree ${newTreeId.trim().toUpperCase()} has been saved to this orchard.`);
+    } catch (err: any) {
+      Alert.alert('Error Registering Tree', err.message || 'Failed to add tree.');
     } finally {
       setIsSubmitting(false);
     }
@@ -94,7 +109,13 @@ export default function FarmDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} colors={[Colors.primary]} />
+        }
+      >
         {/* Health Score Summary Card */}
         <View style={[styles.summaryCard, Shadows.sm]}>
           <View style={styles.summaryTop}>

@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Modal,
   TextInput,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -25,12 +27,22 @@ import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 
 export default function FarmsScreen() {
   const router = useRouter();
-  const { farms, setSelectedFarm, addFarm } = useFarms();
+  const { farms, setSelectedFarm, addFarm, refreshFarms, isLoading } = useFarms();
 
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [newFarmName, setNewFarmName] = useState('');
   const [newFarmLocation, setNewFarmLocation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshFarms();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleCreateFarm = async () => {
     if (!newFarmName.trim() || !newFarmLocation.trim()) return;
@@ -41,6 +53,8 @@ export default function FarmsScreen() {
       setNewFarmLocation('');
       setModalVisible(false);
       router.push(`/farm/${created._id}` as any);
+    } catch (err: any) {
+      Alert.alert('Create Farm Error', err.message || 'Failed to save orchard to server.');
     } finally {
       setIsSubmitting(false);
     }
@@ -65,7 +79,13 @@ export default function FarmsScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} colors={[Colors.primary]} />
+        }
+      >
         {farms.map((farm) => {
           return (
             <TouchableOpacity

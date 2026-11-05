@@ -45,7 +45,8 @@
           "photosPermission": "Allow durian.health to access photos to analyze leaf diseases.",
           "cameraPermission": "Allow durian.health to photograph durian leaves for instant diagnosis."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

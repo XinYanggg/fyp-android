@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -17,15 +18,32 @@ import {
   ChevronRight,
   Sparkles,
   MapPin,
+  Database,
+  User as UserIcon,
 } from 'lucide-react-native';
 import { useFarms } from '../../context/FarmContext';
+import { useAuth } from '../../context/AuthContext';
 import { MetricCard } from '../../components/common/MetricCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { LoginModal } from '../../components/common/LoginModal';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { farms, selectedFarm, setSelectedFarm } = useFarms();
+  const { farms, selectedFarm, setSelectedFarm, refreshFarms, isLoading, isLiveBackend } = useFarms();
+  const { user } = useAuth();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshFarms();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const currentFarm = selectedFarm || farms[0];
   const trees = currentFarm?.trees || [];
@@ -36,7 +54,13 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} colors={[Colors.primary]} />
+        }
+      >
         {/* Brand Header */}
         <View style={styles.header}>
           <View>
@@ -46,9 +70,43 @@ export default function DashboardScreen() {
             </View>
             <Text style={styles.brandSubtitle}>AI Orchard Management & Diagnostics</Text>
           </View>
-          <View style={styles.avatarPill}>
-            <Text style={styles.avatarText}>DH</Text>
-          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => {
+              if (user) {
+                router.push('/(tabs)/profile');
+              } else {
+                setLoginModalVisible(true);
+              }
+            }}
+            style={styles.avatarPill}
+          >
+            {user ? (
+              <Text style={styles.avatarText}>
+                {user.name ? user.name.slice(0, 2).toUpperCase() : 'DH'}
+              </Text>
+            ) : (
+              <UserIcon size={18} color={Colors.primary} />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Live Backend Connection Indicator */}
+        <View style={styles.syncRow}>
+          <View style={[styles.syncDot, isLiveBackend ? styles.syncDotActive : styles.syncDotMock]} />
+          <Text style={styles.syncText}>
+            {isLiveBackend
+              ? 'Synced with Next.js Backend & MongoDB'
+              : user
+              ? 'Offline mode (pull down to refresh backend)'
+              : 'Guest mode · '}
+          </Text>
+          {!user && (
+            <TouchableOpacity onPress={() => setLoginModalVisible(true)}>
+              <Text style={styles.syncLoginLink}>Log In</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Farm Selector Pill */}
@@ -189,6 +247,12 @@ export default function DashboardScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Login Modal */}
+      <LoginModal
+        visible={loginModalVisible}
+        onClose={() => setLoginModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -206,7 +270,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.xs,
   },
   brandRow: {
     flexDirection: 'row',
@@ -237,6 +301,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: Colors.primaryDark,
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+    marginTop: 4,
+  },
+  syncDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  syncDotActive: {
+    backgroundColor: Colors.success,
+  },
+  syncDotMock: {
+    backgroundColor: Colors.accent,
+  },
+  syncText: {
+    fontSize: 11,
+    color: Colors.light.textSecondary,
+    fontWeight: '500',
+  },
+  syncLoginLink: {
+    fontSize: 11,
+    color: Colors.primary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   farmSelectorContainer: {
     marginBottom: Spacing.md,

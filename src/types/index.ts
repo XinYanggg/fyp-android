@@ -1,3 +1,10 @@
+export interface User {
+  id: string;
+  name?: string | null;
+  email: string;
+  image?: string | null;
+}
+
 export interface Member {
   email: string;
   role: 'owner' | 'member';
@@ -26,11 +33,11 @@ export interface Farm {
   ownerEmail: string;
   name: string;
   location: string;
-  treeCount: number;
+  treeCount?: number;
   members: Member[];
   trees: Tree[];
-  lastScan: string;
-  healthPercentage: string;
+  lastScan?: string;
+  healthPercentage?: string;
 }
 
 export interface DiseaseInfo {
@@ -40,4 +47,3 @@ export interface DiseaseInfo {
   symptoms: string[];
   treatment: string[];
 }
-

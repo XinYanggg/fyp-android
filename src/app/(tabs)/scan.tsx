@@ -22,7 +22,7 @@ import {
   CheckCircle2,
 } from 'lucide-react-native';
 import { useFarms } from '../../context/FarmContext';
-import { StatusBadge } from '../../components/common/StatusBadge';
+import { StatusBadge, formatConfidence } from '../../components/common/StatusBadge';
 import { DISEASE_INFO } from '../../data/mockData';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 import { useRouter } from 'expo-router';
@@ -217,14 +217,14 @@ export default function ScanScreen() {
             <View style={styles.confidenceSection}>
               <View style={styles.confidenceLabelRow}>
                 <Text style={styles.confidenceLabel}>Confidence Score</Text>
-                <Text style={styles.confidencePct}>{Math.round(result.confidence * 100)}%</Text>
+                <Text style={styles.confidencePct}>{formatConfidence(result.confidence)}</Text>
               </View>
               <View style={styles.confidenceBarBg}>
                 <View
                   style={[
                     styles.confidenceBarFill,
                     {
-                      width: `${Math.round(result.confidence * 100)}%`,
+                      width: `${Math.min(100, Math.max(0, result.confidence <= 1 ? Math.round(result.confidence * 100) : Math.round(result.confidence)))}%`,
                       backgroundColor:
                         result.disease === 'Healthy'
                           ? Colors.success

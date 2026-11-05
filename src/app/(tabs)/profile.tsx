@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,27 +6,61 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import {
-  User,
+  User as UserIcon,
   Shield,
   Server,
   Cpu,
   LogOut,
+  LogIn,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react-native';
 import { useFarms } from '../../context/FarmContext';
+import { useAuth } from '../../context/AuthContext';
+import { LoginModal } from '../../components/common/LoginModal';
+import { api } from '../../services/api';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 
 export default function ProfileScreen() {
-  const { farms } = useFarms();
+  const { farms, isLiveBackend } = useFarms();
+  const { user, logout, isServerOnline, checkServerStatus } = useAuth();
+
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
+  const [checkingPing, setCheckingPing] = useState(false);
+
+  const handlePing = async () => {
+    setCheckingPing(true);
+    try {
+      const ok = await checkServerStatus();
+      if (ok) {
+        Alert.alert('Connection Successful', `Backend reached at ${api.getBaseUrl()}`);
+      } else {
+        Alert.alert(
+          'Connection Failed',
+          `Could not reach ${api.getBaseUrl()}.\n\nEnsure your Next.js server is running:\nnpm run dev`
+        );
+      }
+    } finally {
+      setCheckingPing(false);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to log out from this device?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', style: 'destructive', onPress: () => Alert.alert('Logged out', 'Session terminated.') },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          Alert.alert('Signed Out', 'You are now in guest mode.');
+        },
+      },
     ]);
   };
 
@@ -43,21 +77,37 @@ export default function ProfileScreen() {
         {/* User Card */}
         <View style={[styles.userCard, Shadows.md]}>
           <View style={styles.avatarLarge}>
-            <User size={36} color={Colors.primary} strokeWidth={2.2} />
+            <UserIcon size={34} color={Colors.primary} strokeWidth={2.2} />
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>Orchard Manager</Text>
-            <Text style={styles.userEmail}>farmer@durian.health</Text>
-            <View style={styles.roleBadge}>
-              <Shield size={12} color={Colors.primary} />
-              <Text style={styles.roleText}>Farm Owner & Admin</Text>
+            <Text style={styles.userName}>{user ? user.name || 'Orchard Manager' : 'Guest Farmer'}</Text>
+            <Text style={styles.userEmail}>{user ? user.email : 'Local preview session'}</Text>
+            <View style={[styles.roleBadge, !user && styles.roleBadgeGuest]}>
+              <Shield size={12} color={user ? Colors.primary : Colors.accent} />
+              <Text style={[styles.roleText, !user && { color: Colors.accent }]}>
+                {user ? 'Verified Next.js Account' : 'Guest Mode'}
+              </Text>
             </View>
           </View>
         </View>
 
+        {/* Login / Auth Action Button */}
+        {!user ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setLoginModalVisible(true)}
+            style={[styles.loginPromptButton, Shadows.sm]}
+          >
+            <LogIn size={18} color="#ffffff" />
+            <Text style={styles.loginPromptText}>Sign In with durian.health</Text>
+          </TouchableOpacity>
+        ) : null}
+
         {/* Orchards Membership */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Connected Estates</Text>
+          <Text style={styles.sectionTitle}>
+            Connected Estates ({farms.length})
+          </Text>
           <View style={[styles.cardGroup, Shadows.sm]}>
             {farms.map((f, i) => (
               <View
@@ -67,12 +117,12 @@ export default function ProfileScreen() {
                   i !== farms.length - 1 && styles.rowDivider,
                 ]}
               >
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.rowMainText}>{f.name}</Text>
-                  <Text style={styles.rowSubText}>{f.trees.length} trees · {f.location}</Text>
+                  <Text style={styles.rowSubText}>{f.trees?.length || 0} trees · {f.location}</Text>
                 </View>
                 <View style={styles.ownerPill}>
-                  <Text style={styles.ownerPillText}>Owner</Text>
+                  <Text style={styles.ownerPillText}>{isLiveBackend ? 'MongoDB' : 'Local'}</Text>
                 </View>
               </View>
             ))}
@@ -81,7 +131,20 @@ export default function ProfileScreen() {
 
         {/* Developer & Backend Link Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>System & Backend Architecture</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>System & Backend Architecture</Text>
+            <TouchableOpacity onPress={handlePing} disabled={checkingPing} style={styles.pingBtn}>
+              {checkingPing ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <>
+                  <RefreshCw size={13} color={Colors.primary} />
+                  <Text style={styles.pingBtnText}>Test Ping</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
           <View style={[styles.cardGroup, Shadows.sm]}>
             {/* Next.js Host link */}
             <View style={[styles.cardGroupRow, styles.rowDivider]}>
@@ -89,11 +152,13 @@ export default function ProfileScreen() {
                 <Server size={18} color={Colors.primary} />
               </View>
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
-                <Text style={styles.rowMainText}>Next.js Backend Host</Text>
-                <Text style={styles.rowSubText}>http://10.0.2.2:3000 (Android Emulator)</Text>
+                <Text style={styles.rowMainText}>Next.js Backend API</Text>
+                <Text style={styles.rowSubText}>{api.getBaseUrl()}</Text>
               </View>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>Configured</Text>
+              <View style={[styles.statusPill, isServerOnline ? styles.statusPillOnline : styles.statusPillOffline]}>
+                <Text style={[styles.statusPillText, { color: isServerOnline ? Colors.success : Colors.warning }]}>
+                  {isServerOnline ? 'Online' : 'Offline'}
+                </Text>
               </View>
             </View>
 
@@ -104,10 +169,10 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                 <Text style={styles.rowMainText}>AI Prediction Service</Text>
-                <Text style={styles.rowSubText}>FastAPI Computer Vision Engine</Text>
+                <Text style={styles.rowSubText}>https://durian-health-api.farnxinyang.com</Text>
               </View>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>Online</Text>
+              <View style={[styles.statusPill, styles.statusPillOnline]}>
+                <Text style={[styles.statusPillText, { color: Colors.success }]}>Active</Text>
               </View>
             </View>
 
@@ -118,22 +183,30 @@ export default function ProfileScreen() {
               </View>
               <View style={{ flex: 1, marginLeft: Spacing.sm }}>
                 <Text style={styles.rowMainText}>Client Version</Text>
-                <Text style={styles.rowSubText}>durian.health v1.0.0 (Expo SDK 58)</Text>
+                <Text style={styles.rowSubText}>durian.health Android (Expo SDK 58)</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {/* Sign Out Button */}
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={handleSignOut}
-          style={[styles.signOutButton, Shadows.sm]}
-        >
-          <LogOut size={18} color={Colors.danger} />
-          <Text style={styles.signOutText}>Sign Out from Device</Text>
-        </TouchableOpacity>
+        {/* Sign Out Button (if logged in) */}
+        {user ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleSignOut}
+            style={[styles.signOutButton, Shadows.sm]}
+          >
+            <LogOut size={18} color={Colors.danger} />
+            <Text style={styles.signOutText}>Sign Out from Device</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
+
+      {/* Login Modal */}
+      <LoginModal
+        visible={loginModalVisible}
+        onClose={() => setLoginModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -168,12 +241,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.light.border,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   avatarLarge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: Colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
@@ -205,13 +278,37 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     marginTop: 6,
   },
+  roleBadgeGuest: {
+    backgroundColor: Colors.accentLight,
+  },
   roleText: {
     fontSize: 11,
     fontWeight: '700',
     color: Colors.success,
   },
+  loginPromptButton: {
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
+  },
+  loginPromptText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
   section: {
     marginBottom: Spacing.lg,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
   },
   sectionTitle: {
     fontSize: 14,
@@ -219,7 +316,18 @@ const styles = StyleSheet.create({
     color: Colors.light.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: Spacing.sm,
+  },
+  pingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  pingBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   cardGroup: {
     backgroundColor: Colors.light.surface,
@@ -267,15 +375,19 @@ const styles = StyleSheet.create({
     color: Colors.primaryDark,
   },
   statusPill: {
-    backgroundColor: Colors.successLight,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
     borderRadius: BorderRadius.full,
   },
+  statusPillOnline: {
+    backgroundColor: Colors.successLight,
+  },
+  statusPillOffline: {
+    backgroundColor: Colors.warningLight,
+  },
   statusPillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.success,
   },
   signOutButton: {
     flexDirection: 'row',
