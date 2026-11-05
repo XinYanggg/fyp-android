@@ -264,8 +264,7 @@ export const FarmProvider = ({ children }: { children: ReactNode }) => {
 
         return {
           disease: formatted,
-          // Convert 0-1 float to percentage with 2 decimals (e.g. 0.9999 -> 99.99) matching web scan
-          confidence: Math.round(data.confidence * 10000) / 100,
+          confidence: Math.round(data.confidence * 100) / 100,
         };
       }
     } catch (err: any) {
