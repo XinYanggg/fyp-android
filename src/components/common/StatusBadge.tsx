@@ -32,7 +32,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, confidence, sh
       {showIcon && <Icon size={14} color={textColor} strokeWidth={2.5} style={styles.icon} />}
       <Text style={[styles.label, { color: textColor }]}>
         {status}
-        {confidence !== undefined && ` (${Math.round(confidence * 100)}%)`}
+        {confidence !== undefined && ` (${confidence}%)`}
       </Text>
     </View>
   );
