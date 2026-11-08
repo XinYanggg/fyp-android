@@ -118,11 +118,11 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={farm._id}
                   onPress={() => setSelectedFarm(farm)}
-                  style={[
+                    style={[
                     styles.farmPill,
                     isSelected && styles.farmPillActive,
-                  ]}
-                >
+                    ]}
+                  >
                   <MapPin size={13} color={isSelected ? '#ffffff' : Colors.light.textSecondary} style={{ marginRight: 4 }} />
                   <Text style={[styles.farmPillText, isSelected && styles.farmPillTextActive]}>
                     {farm.name}
@@ -242,7 +242,7 @@ export default function DashboardScreen() {
                   <Text style={styles.treeScanTime}>Last scan: {tree.lastScan}</Text>
                 </View>
               </View>
-              <StatusBadge status={tree.currentDisease} confidence={tree.confidence} />
+              <StatusBadge status={tree.currentDisease} />
             </TouchableOpacity>
           ))}
         </View>

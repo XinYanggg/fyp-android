@@ -16,14 +16,14 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, confidence, sh
   const bgColor = isHealthy
     ? Colors.successLight
     : isModerate
-    ? Colors.warningLight
-    : Colors.dangerLight;
+      ? Colors.warningLight
+      : Colors.dangerLight;
 
   const textColor = isHealthy
     ? Colors.success
     : isModerate
-    ? Colors.warning
-    : Colors.danger;
+      ? Colors.warning
+      : Colors.danger;
 
   const Icon = isHealthy ? CheckCircle2 : isModerate ? AlertTriangle : AlertCircle;
 
@@ -46,13 +46,17 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
     alignSelf: 'flex-start',
+    flexShrink: 1,
   },
   icon: {
     marginRight: 4,
+    flexShrink: 0,
   },
   label: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.2,
+    flexShrink: 1,
+    textAlign: "center",
   },
 });

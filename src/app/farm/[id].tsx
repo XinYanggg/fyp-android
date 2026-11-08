@@ -182,7 +182,7 @@ export default function FarmDetailScreen() {
                   </View>
                 </View>
 
-                <StatusBadge status={tree.currentDisease} confidence={tree.confidence} />
+                <StatusBadge status={tree.currentDisease} />
               </View>
 
               <View style={styles.treeCardFooter}>
