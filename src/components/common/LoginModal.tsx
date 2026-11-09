@@ -9,25 +9,51 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
-import { LogIn, X, Mail, Lock, Server, AlertCircle } from 'lucide-react-native';
+import { LogIn, UserPlus, X, Mail, Lock, User as UserIcon, Server, AlertCircle, CheckCircle2 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 
 interface LoginModalProps {
   visible: boolean;
   onClose: () => void;
+  initialMode?: 'login' | 'register';
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
-  const { login, isServerOnline } = useAuth();
+export const LoginModal: React.FC<LoginModalProps> = ({
+  visible,
+  onClose,
+  initialMode = 'login',
+}) => {
+  const { login, register, isServerOnline } = useAuth();
 
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setErrorMsg(null);
+    setSuccessMsg(null);
+  };
+
+  const switchMode = (newMode: 'login' | 'register') => {
+    setMode(newMode);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+  };
+
+  const handleLoginSubmit = async () => {
     if (!email.trim() || !password) {
       setErrorMsg('Please enter both email and password.');
       return;
@@ -38,11 +64,50 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
     try {
       const res = await login(email.trim(), password);
       if (res.success) {
-        setEmail('');
-        setPassword('');
+        resetForm();
         onClose();
       } else {
         setErrorMsg(res.error || 'Authentication failed.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async () => {
+    if (!name.trim() || !email.trim() || !password) {
+      setErrorMsg('Please fill in all required fields.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      const res = await register(name.trim(), email.trim(), password);
+      if (res.success) {
+        if (res.isVerified) {
+          // Auto-logged in!
+          resetForm();
+          onClose();
+        } else {
+          // Verification email sent
+          setSuccessMsg(res.message || 'Account created! Please check your email to verify.');
+          setPassword('');
+          setConfirmPassword('');
+        }
+      } else {
+        setErrorMsg(res.error || 'Registration failed.');
       }
     } finally {
       setLoading(false);
@@ -64,79 +129,172 @@ export const LoginModal: React.FC<LoginModalProps> = ({ visible, onClose }) => {
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>Sign In</Text>
-              <Text style={styles.subtitle}>Connect your durian.health account</Text>
+              <Text style={styles.title}>
+                {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+              </Text>
+              <Text style={styles.subtitle}>
+                {mode === 'login'
+                  ? 'Sign in to access your durian orchards'
+                  : 'Start managing your orchards with AI'}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
               <X size={20} color={Colors.light.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Backend Status Pill */}
-          <View style={[styles.statusPill, isServerOnline ? styles.statusPillOnline : styles.statusPillOffline]}>
-            <Server size={14} color={isServerOnline ? Colors.success : Colors.warning} />
-            <Text style={[styles.statusText, { color: isServerOnline ? Colors.success : Colors.warning }]}>
-              {isServerOnline ? 'Connected to Next.js Backend (:3000)' : 'Backend offline (ensure npm run dev is running)'}
-            </Text>
+          {/* Mode Switcher Tabs */}
+          <View style={styles.tabSwitcher}>
+            <TouchableOpacity
+              onPress={() => switchMode('login')}
+              style={[styles.tabButton, mode === 'login' && styles.tabButtonActive]}
+            >
+              <LogIn size={15} color={mode === 'login' ? Colors.primary : Colors.light.textSecondary} />
+              <Text style={[styles.tabButtonText, mode === 'login' && styles.tabButtonTextActive]}>
+                Sign In
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => switchMode('register')}
+              style={[styles.tabButton, mode === 'register' && styles.tabButtonActive]}
+            >
+              <UserPlus size={15} color={mode === 'register' ? Colors.primary : Colors.light.textSecondary} />
+              <Text style={[styles.tabButtonText, mode === 'register' && styles.tabButtonTextActive]}>
+                Register
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Error Message */}
-          {errorMsg && (
-            <View style={styles.errorBox}>
-              <AlertCircle size={16} color={Colors.danger} />
-              <Text style={styles.errorText}>{errorMsg}</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.md }}>
+            {/* Backend Status Pill */}
+            <View style={[styles.statusPill, isServerOnline ? styles.statusPillOnline : styles.statusPillOffline]}>
+              <Server size={13} color={isServerOnline ? Colors.success : Colors.warning} />
+              <Text style={[styles.statusText, { color: isServerOnline ? Colors.success : Colors.warning }]}>
+                {isServerOnline ? 'Next.js Backend Online (:3000)' : 'Backend offline (run npm run dev)'}
+              </Text>
             </View>
-          )}
 
-          {/* Email Input */}
-          <Text style={styles.label}>Email Address</Text>
-          <View style={styles.inputContainer}>
-            <Mail size={18} color={Colors.light.textSecondary} style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.input}
-              placeholder="farmer@durian.health"
-              placeholderTextColor={Colors.light.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
-
-          {/* Password Input */}
-          <Text style={styles.label}>Password</Text>
-          <View style={styles.inputContainer}>
-            <Lock size={18} color={Colors.light.textSecondary} style={{ marginRight: 8 }} />
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor={Colors.light.textMuted}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
-          </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={handleSubmit}
-            disabled={loading}
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-          >
-            {loading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <View style={styles.submitBtnContent}>
-                <LogIn size={18} color="#ffffff" />
-                <Text style={styles.submitButtonText}>Log In to Orchard</Text>
+            {/* Error Message */}
+            {errorMsg && (
+              <View style={styles.errorBox}>
+                <AlertCircle size={16} color={Colors.danger} />
+                <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             )}
-          </TouchableOpacity>
 
-          <Text style={styles.helperText}>
-            Sign in with the credentials registered on your durian.health web application.
-          </Text>
+            {/* Success Message */}
+            {successMsg && (
+              <View style={styles.successBox}>
+                <CheckCircle2 size={16} color={Colors.success} />
+                <Text style={styles.successText}>{successMsg}</Text>
+              </View>
+            )}
+
+            {/* REGISTER-ONLY: Full Name */}
+            {mode === 'register' && (
+              <>
+                <Text style={styles.label}>Full Name</Text>
+                <View style={styles.inputContainer}>
+                  <UserIcon size={18} color={Colors.light.textSecondary} style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. John Doe"
+                    placeholderTextColor={Colors.light.textMuted}
+                    value={name}
+                    onChangeText={setName}
+                  />
+                </View>
+              </>
+            )}
+
+            {/* Email Input */}
+            <Text style={styles.label}>Email Address</Text>
+            <View style={styles.inputContainer}>
+              <Mail size={18} color={Colors.light.textSecondary} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="farmer@durian.health"
+                placeholderTextColor={Colors.light.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            {/* Password Input */}
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputContainer}>
+              <Lock size={18} color={Colors.light.textSecondary} style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.input}
+                placeholder={mode === 'register' ? 'At least 6 characters' : '••••••••'}
+                placeholderTextColor={Colors.light.textMuted}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+            </View>
+
+            {/* REGISTER-ONLY: Confirm Password */}
+            {mode === 'register' && (
+              <>
+                <Text style={styles.label}>Confirm Password</Text>
+                <View style={styles.inputContainer}>
+                  <Lock size={18} color={Colors.light.textSecondary} style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Repeat password"
+                    placeholderTextColor={Colors.light.textMuted}
+                    secureTextEntry
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                  />
+                </View>
+              </>
+            )}
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={mode === 'login' ? handleLoginSubmit : handleRegisterSubmit}
+              disabled={loading}
+              style={[styles.submitButton, (loading) && styles.submitButtonDisabled]}
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <View style={styles.submitBtnContent}>
+                  {mode === 'login' ? (
+                    <>
+                      <LogIn size={18} color="#ffffff" />
+                      <Text style={styles.submitButtonText}>Log In to Orchard</Text>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={18} color="#ffffff" />
+                      <Text style={styles.submitButtonText}>Create Account</Text>
+                    </>
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Switch Mode Prompt */}
+            <TouchableOpacity
+              onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}
+              style={styles.switchModeLink}
+            >
+              <Text style={styles.switchModeText}>
+                {mode === 'login' ? (
+                  <>Don't have an account? <Text style={styles.switchModeBold}>Sign up now</Text></>
+                ) : (
+                  <>Already have an account? <Text style={styles.switchModeBold}>Sign in</Text></>
+                )}
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -153,8 +311,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light.surface,
     borderTopLeftRadius: BorderRadius.xl,
     borderTopRightRadius: BorderRadius.xl,
-    padding: Spacing.xl,
-    paddingBottom: Spacing.xxl + 10,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.xl,
+    maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
@@ -175,12 +334,46 @@ const styles = StyleSheet.create({
   closeBtn: {
     padding: 4,
   },
+  tabSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: Colors.light.background,
+    borderRadius: BorderRadius.lg,
+    padding: 3,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    gap: 6,
+  },
+  tabButtonActive: {
+    backgroundColor: Colors.light.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.light.textSecondary,
+  },
+  tabButtonTextActive: {
+    color: Colors.primary,
+  },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
+    paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
     marginBottom: Spacing.md,
   },
@@ -191,7 +384,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.warningLight,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   errorBox: {
@@ -209,12 +402,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  successBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.successLight,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  successText: {
+    flex: 1,
+    color: Colors.success,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   label: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: Colors.light.text,
-    marginBottom: 6,
-    marginTop: Spacing.sm,
+    marginBottom: 5,
+    marginTop: Spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -224,8 +432,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.light.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    height: 48,
-    marginBottom: Spacing.xs,
+    height: 46,
+    marginBottom: Spacing.sm,
   },
   input: {
     flex: 1,
@@ -238,7 +446,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: Spacing.lg,
+    marginTop: Spacing.md,
   },
   submitButtonDisabled: {
     opacity: 0.6,
@@ -253,12 +461,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
-  helperText: {
-    fontSize: 11,
-    color: Colors.light.textMuted,
-    textAlign: 'center',
+  switchModeLink: {
+    alignItems: 'center',
     marginTop: Spacing.md,
-    lineHeight: 16,
+    paddingVertical: Spacing.xs,
+  },
+  switchModeText: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  switchModeBold: {
+    color: Colors.primary,
+    fontWeight: '800',
   },
 });
-

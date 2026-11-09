@@ -12,6 +12,11 @@ interface AuthContextType {
   isLoading: boolean;
   isServerOnline: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (
+    name: string,
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; isVerified?: boolean; message?: string; error?: string }>;
   logout: () => Promise<void>;
   checkServerStatus: () => Promise<boolean>;
 }
@@ -84,8 +89,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       return { success: true };
     } catch (err: any) {
-      // Return expected validation error to UI without throwing terminal red-box
       return { success: false, error: err.message || 'Login failed. Please check credentials.' };
+    }
+  };
+
+  const register = async (
+    name: string,
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; isVerified?: boolean; message?: string; error?: string }> => {
+    try {
+      const data = await api.register(name, email, password);
+
+      return {
+        success: true,
+        isVerified: false,
+        message: data.message || 'Signup successful! Please check your email to verify your account.',
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Registration failed. Please try again.',
+      };
     }
   };
 
@@ -109,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         isServerOnline,
         login,
+        register,
         logout,
         checkServerStatus,
       }}

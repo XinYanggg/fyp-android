@@ -1,5 +1,9 @@
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { Farm, Tree, User } from '../types';
+
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Android Studio Emulator uses 10.0.2.2 to access host machine's localhost:3000.
@@ -99,13 +103,30 @@ class ApiService {
   }
 
   /**
-   * Mobile Login
+   * Mobile Login (Email & Password)
    */
   public async login(email: string, password: string): Promise<{ token: string; user: User }> {
     return this.request<{ token: string; user: User }>('/api/mobile/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+  }
+
+  /**
+   * Mobile Registration (uses the original /api/register endpoint)
+   */
+  public async register(
+    name: string,
+    email: string,
+    password: string
+  ): Promise<{ message: string }> {
+    return this.request<{ message: string }>(
+      '/api/register',
+      {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password }),
+      }
+    );
   }
 
   /**
@@ -186,4 +207,3 @@ class ApiService {
 }
 
 export const api = new ApiService();
-
