@@ -113,6 +113,16 @@ class ApiService {
   }
 
   /**
+   * Mobile Google Sign-In: exchange a Google ID token for an app session token
+   */
+  public async googleLogin(idToken: string): Promise<{ token: string; user: User }> {
+    return this.request<{ token: string; user: User }>('/api/mobile/google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken }),
+    });
+  }
+
+  /**
    * Mobile Registration (uses the original /api/register endpoint)
    */
   public async register(

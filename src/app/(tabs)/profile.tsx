@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -76,9 +77,23 @@ export default function ProfileScreen() {
 
         {/* User Card */}
         <View style={[styles.userCard, Shadows.md]}>
-          <View style={styles.avatarLarge}>
-            <UserIcon size={34} color={Colors.primary} strokeWidth={2.2} />
-          </View>
+          {user?.image ? (
+            <Image
+              source={{ uri: user.image }}
+              style={styles.avatarImage}
+              accessibilityLabel={user.name || 'User avatar'}
+            />
+          ) : user ? (
+            <View style={[styles.avatarLarge, styles.avatarInitial]}>
+              <Text style={styles.avatarInitialText}>
+                {user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || '?'}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.avatarLarge}>
+              <UserIcon size={34} color={Colors.primary} strokeWidth={2.2} />
+            </View>
+          )}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{user ? user.name || 'Orchard Manager' : 'Guest Farmer'}</Text>
             <Text style={styles.userEmail}>{user ? user.email : 'Local preview session'}</Text>
@@ -253,6 +268,24 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
     borderWidth: 2,
     borderColor: Colors.primary,
+  },
+  avatarImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: Spacing.md,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  avatarInitial: {
+    backgroundColor: '#fde68a',
+    borderColor: '#fde68a',
+  },
+  avatarInitialText: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#000000',
   },
   userInfo: {
     flex: 1,

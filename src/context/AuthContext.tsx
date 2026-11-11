@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { User } from '../types';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { api } from '../services/api';
+
+// Web OAuth client ID (same as GOOGLE_CLIENT_ID on the website). Needed so the
+// ID token's audience matches what the backend verifies.
+const GOOGLE_WEB_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
 const TOKEN_KEY = 'dh_auth_token';
 const USER_KEY = 'dh_auth_user';
@@ -12,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean;
   isServerOnline: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
   register: (
     name: string,
     email: string,
@@ -93,6 +100,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const loginWithGoogle = async (): Promise<{ success: boolean; cancelled?: boolean; error?: string }> => {
+    try {
+      GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID });
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const result = await GoogleSignin.signIn();
+
+      if (result.type !== 'success') {
+        return { success: false, cancelled: true };
+      }
+
+      const idToken = result.data.idToken;
+      if (!idToken) {
+        return { success: false, error: 'Google did not return an ID token.' };
+      }
+
+      const data = await api.googleLogin(idToken);
+      api.setToken(data.token);
+      setToken(data.token);
+      setUser(data.user);
+
+      await SecureStore.setItemAsync(TOKEN_KEY, data.token);
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(data.user));
+
+      return { success: true };
+    } catch (err: any) {
+      if (err?.code === statusCodes.SIGN_IN_CANCELLED) {
+        return { success: false, cancelled: true };
+      }
+      return { success: false, error: err?.message || 'Google sign-in failed.' };
+    }
+  };
+
   const register = async (
     name: string,
     email: string,
@@ -116,6 +155,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
+      await GoogleSignin.signOut();
+    } catch {
+      // not signed in with Google
+    }
+    try {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
     } catch {
@@ -134,6 +178,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isLoading,
         isServerOnline,
         login,
+        loginWithGoogle,
         register,
         logout,
         checkServerStatus,

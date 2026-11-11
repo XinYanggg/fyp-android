@@ -12,6 +12,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { LogIn, UserPlus, X, Mail, Lock, User as UserIcon, Server, AlertCircle, CheckCircle2 } from 'lucide-react-native';
+import { GoogleLogo } from './GoogleLogo';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 
@@ -26,7 +27,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onClose,
   initialMode = 'login',
 }) => {
-  const { login, register, isServerOnline } = useAuth();
+  const { login, loginWithGoogle, register, isServerOnline } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [name, setName] = useState('');
@@ -68,6 +69,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         onClose();
       } else {
         setErrorMsg(res.error || 'Authentication failed.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await loginWithGoogle();
+      if (res.success) {
+        resetForm();
+        onClose();
+      } else if (!res.cancelled) {
+        setErrorMsg(res.error || 'Google sign-in failed.');
       }
     } finally {
       setLoading(false);
@@ -281,6 +298,24 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               )}
             </TouchableOpacity>
 
+            {/* Google Sign-In */}
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleGoogleSignIn}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
+              style={[styles.googleButton, loading && styles.submitButtonDisabled]}
+            >
+              <GoogleLogo size={20} />
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
+            </TouchableOpacity>
+
             {/* Switch Mode Prompt */}
             <TouchableOpacity
               onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}
@@ -460,6 +495,38 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '800',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: Spacing.md,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.light.border,
+  },
+  dividerText: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    backgroundColor: Colors.light.surface,
+  },
+  googleButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.light.text,
   },
   switchModeLink: {
     alignItems: 'center',
