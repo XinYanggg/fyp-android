@@ -9,7 +9,11 @@ WebBrowser.maybeCompleteAuthSession();
  * Android Studio Emulator uses 10.0.2.2 to access host machine's localhost:3000.
  * iOS Simulator or web uses localhost:3000.
  */
-const DEFAULT_HOST = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+const DEFAULT_HOST = process.env.EXPO_PUBLIC_API_URL!;
+
+if (typeof DEFAULT_HOST !== "string") {
+  throw new Error("EXPO_PUBLIC_API_URL is not configured");
+}
 
 class ApiService {
   private baseUrl: string = DEFAULT_HOST;
@@ -167,26 +171,6 @@ class ApiService {
       body: JSON.stringify({ name, location }),
     });
     return data.farm;
-  }
-
-  /**
-   * Add a member (by email) to a farm. Owner only.
-   */
-  public async addMember(farmId: string, email: string): Promise<{ farm: Farm }> {
-    return this.request<{ farm: Farm }>('/api/farm/member/add', {
-      method: 'POST',
-      body: JSON.stringify({ farmId, email }),
-    });
-  }
-
-  /**
-   * Remove a member from a farm. Owner only.
-   */
-  public async removeMember(farmId: string, email: string): Promise<{ farm: Farm }> {
-    return this.request<{ farm: Farm }>('/api/farm/member/remove', {
-      method: 'POST',
-      body: JSON.stringify({ farmId, email }),
-    });
   }
 
   /**
