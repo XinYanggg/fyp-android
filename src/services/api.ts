@@ -170,6 +170,26 @@ class ApiService {
   }
 
   /**
+   * Add a member (by email) to a farm. Owner only.
+   */
+  public async addMember(farmId: string, email: string): Promise<{ farm: Farm }> {
+    return this.request<{ farm: Farm }>('/api/farm/member/add', {
+      method: 'POST',
+      body: JSON.stringify({ farmId, email }),
+    });
+  }
+
+  /**
+   * Remove a member from a farm. Owner only.
+   */
+  public async removeMember(farmId: string, email: string): Promise<{ farm: Farm }> {
+    return this.request<{ farm: Farm }>('/api/farm/member/remove', {
+      method: 'POST',
+      body: JSON.stringify({ farmId, email }),
+    });
+  }
+
+  /**
    * Add a tree to a farm
    */
   public async addTree(farmId: string, treeId: string, cultivar: string): Promise<{ message: string; farm: Farm }> {

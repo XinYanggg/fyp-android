@@ -16,6 +16,8 @@ interface FarmContextType {
   refreshFarms: () => Promise<void>;
   addFarm: (name: string, location: string) => Promise<Farm>;
   addTree: (farmId: string, treeId: string, cultivar: string) => Promise<Tree>;
+  addMember: (farmId: string, email: string) => Promise<void>;
+  removeMember: (farmId: string, email: string) => Promise<void>;
   saveScan: (farmId: string, treeId: string, disease: string, confidence: number, imageUrl?: string, notes?: string) => Promise<void>;
   detectDisease: (imageUri: string) => Promise<{ disease: string; confidence: number }>;
 }
@@ -188,6 +190,40 @@ export const FarmProvider = ({ children }: { children: ReactNode }) => {
     return newTree;
   };
 
+  const applyMembers = (farmId: string, members: Farm['members']) => {
+    setFarms((prev) => prev.map((f) => (f._id === farmId ? { ...f, members } : f)));
+    setSelectedFarm((curr) => (curr && curr._id === farmId ? { ...curr, members } : curr));
+  };
+
+  const addMember = async (farmId: string, email: string): Promise<void> => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (token && isLiveBackend) {
+      const res = await api.addMember(farmId, cleanEmail);
+      applyMembers(farmId, res.farm.members);
+      return;
+    }
+    // Local / Offline fallback
+    const farm = farms.find((f) => f._id === farmId);
+    if (!farm) return;
+    if (farm.members.some((m) => m.email === cleanEmail)) return;
+    applyMembers(farmId, [...farm.members, { email: cleanEmail, role: 'member' }]);
+  };
+
+  const removeMember = async (farmId: string, email: string): Promise<void> => {
+    if (token && isLiveBackend) {
+      const res = await api.removeMember(farmId, email);
+      applyMembers(farmId, res.farm.members);
+      return;
+    }
+    // Local / Offline fallback
+    const farm = farms.find((f) => f._id === farmId);
+    if (!farm) return;
+    applyMembers(
+      farmId,
+      farm.members.filter((m) => m.email !== email || m.role === 'owner')
+    );
+  };
+
   const saveScan = async (
     farmId: string,
     treeId: string,
@@ -295,6 +331,8 @@ export const FarmProvider = ({ children }: { children: ReactNode }) => {
         refreshFarms,
         addFarm,
         addTree,
+        addMember,
+        removeMember,
         saveScan,
         detectDisease,
       }}

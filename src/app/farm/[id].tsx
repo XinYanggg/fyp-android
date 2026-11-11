@@ -23,8 +23,11 @@ import {
   CheckCircle,
   AlertTriangle,
   Calendar,
+  Users,
+  Trash2,
 } from 'lucide-react-native';
 import { useFarms } from '../../context/FarmContext';
+import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Tree } from '../../types';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
@@ -41,7 +44,8 @@ const POPULAR_CULTIVARS = [
 export default function FarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { farms, addTree, refreshFarms, isLoading } = useFarms();
+  const { farms, addTree, addMember, removeMember, refreshFarms, isLoading } = useFarms();
+  const { user, token } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -63,6 +67,51 @@ export default function FarmDetailScreen() {
   const [newTreeId, setNewTreeId] = useState('');
   const [newCultivar, setNewCultivar] = useState(POPULAR_CULTIVARS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [memberError, setMemberError] = useState<string | null>(null);
+  const [memberBusy, setMemberBusy] = useState(false);
+
+  // Only the owner can manage members (guests previewing local data can too)
+  const isOwner = !token || farm?.ownerEmail === user?.email;
+
+  const handleAddMember = async () => {
+    const email = memberEmail.trim();
+    if (!email || !farm) return;
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setMemberError('Please enter a valid email address.');
+      return;
+    }
+    setMemberBusy(true);
+    setMemberError(null);
+    try {
+      await addMember(farm._id, email);
+      setMemberEmail('');
+    } catch (err: any) {
+      setMemberError(err.message || 'Failed to add member.');
+    } finally {
+      setMemberBusy(false);
+    }
+  };
+
+  const handleRemoveMember = (email: string) => {
+    if (!farm) return;
+    Alert.alert('Remove Member', `Remove ${email} from ${farm.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeMember(farm._id, email);
+          } catch (err: any) {
+            setMemberError(err.message || 'Failed to remove member.');
+          }
+        },
+      },
+    ]);
+  };
 
   const filteredTrees = trees.filter((tree) => {
     if (filter === 'healthy') return tree.currentDisease === 'Healthy';
@@ -102,7 +151,20 @@ export default function FarmDetailScreen() {
           </View>
         </View>
         <TouchableOpacity
+          onPress={() => {
+            setMemberError(null);
+            setMembersModalVisible(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Manage members"
+          style={[styles.addTreeHeaderBtn, styles.membersHeaderBtn]}
+        >
+          <Users size={17} color={Colors.primary} strokeWidth={2.3} />
+        </TouchableOpacity>
+        <TouchableOpacity
           onPress={() => setAddTreeModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add tree"
           style={styles.addTreeHeaderBtn}
         >
           <Plus size={18} color="#ffffff" strokeWidth={2.5} />
@@ -255,6 +317,83 @@ export default function FarmDetailScreen() {
         </View>
       </Modal>
 
+      {/* Manage Members Modal */}
+      <Modal
+        visible={membersModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setMembersModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.historyModalCard, Shadows.lg]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Manage Members</Text>
+                <Text style={styles.modalSubtitle}>{farm?.name}</Text>
+              </View>
+              <TouchableOpacity onPress={() => setMembersModalVisible(false)}>
+                <X size={20} color={Colors.light.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>New Member</Text>
+            <View style={styles.memberInputRow}>
+              <TextInput
+                placeholder="abc@gmail.com"
+                placeholderTextColor={Colors.light.textMuted}
+                value={memberEmail}
+                onChangeText={setMemberEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={isOwner}
+                style={[styles.textInput, styles.memberInput]}
+              />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleAddMember}
+                disabled={!isOwner || memberBusy || !memberEmail.trim()}
+                style={[
+                  styles.memberAddBtn,
+                  (!isOwner || memberBusy || !memberEmail.trim()) && styles.submitButtonDisabled,
+                ]}
+              >
+                <Text style={styles.submitButtonText}>{memberBusy ? '...' : 'Add'}</Text>
+              </TouchableOpacity>
+            </View>
+            {!isOwner && (
+              <Text style={styles.memberHint}>Only the farm owner can add or remove members.</Text>
+            )}
+            {memberError && <Text style={styles.memberError}>{memberError}</Text>}
+
+            <Text style={[styles.historyListTitle, { marginTop: Spacing.sm }]}>
+              Current Members ({farm?.members.length || 0})
+            </Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {farm?.members.map((m) => (
+                <View key={m.email} style={styles.memberRow}>
+                  <Text style={styles.memberEmail} numberOfLines={1}>{m.email}</Text>
+                  {m.role === 'owner' ? (
+                    <View style={styles.ownerBadge}>
+                      <Text style={styles.ownerBadgeText}>Owner</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => handleRemoveMember(m.email)}
+                      disabled={!isOwner}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${m.email}`}
+                      style={[styles.memberRemoveBtn, !isOwner && { opacity: 0.4 }]}
+                    >
+                      <Trash2 size={16} color={Colors.danger} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Tree Scan History Modal */}
       <Modal
         visible={!!selectedTreeHistory}
@@ -337,6 +476,69 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  membersHeaderBtn: {
+    backgroundColor: Colors.primaryLight,
+  },
+  memberInputRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'flex-start',
+  },
+  memberInput: {
+    flex: 1,
+    marginBottom: Spacing.sm,
+  },
+  memberAddBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.lg,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberHint: {
+    fontSize: 12,
+    color: Colors.light.textSecondary,
+    marginBottom: Spacing.sm,
+  },
+  memberError: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.danger,
+    marginBottom: Spacing.sm,
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.light.background,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
+    marginBottom: Spacing.sm,
+  },
+  memberEmail: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.light.text,
+    marginRight: Spacing.sm,
+  },
+  ownerBadge: {
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+  },
+  ownerBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primaryDark,
+  },
+  memberRemoveBtn: {
+    padding: 6,
   },
   scrollContent: {
     padding: Spacing.lg,
