@@ -119,15 +119,49 @@ npm run lint         # lint
 npx tsc --noEmit     # type check
 ```
 
-## Building a Release
+## Installing the App (APK)
 
-Using [EAS Build](https://docs.expo.dev/build/introduction/):
+The app is distributed as an APK through [GitHub Releases](../../releases), not the Play Store.
+
+1. Open the latest release on your Android phone and download `durian-health.apk`.
+2. Open the file. If prompted, allow "Install unknown apps" for your browser or file manager.
+3. Launch **durian.health** and sign in.
+
+## Publishing a Release (maintainers)
+
+A GitHub Actions workflow (`.github/workflows/android-release.yml`) builds and signs the APK, then attaches it to a GitHub Release.
+
+**One-time setup**
+
+1. Create a release keystore and keep it somewhere safe (it is git-ignored). Losing it means users can no longer update the app in place.
+
+    ```bash
+    keytool -genkeypair -v -storetype PKCS12 -keystore durian-release.jks \
+      -alias durian -keyalg RSA -keysize 2048 -validity 10000
+    keytool -list -v -keystore durian-release.jks -alias durian   # note the SHA-1
+    ```
+
+2. Add the SHA-1 to the **Android OAuth client** in Google Cloud Console (package `com.durianhealth.app`), otherwise Google Sign-In fails in the released app.
+3. In the repo, go to **Settings, Secrets and variables, Actions** and add:
+
+    | Secret                             | Value                                         |
+    | ---------------------------------- | --------------------------------------------- |
+    | `ANDROID_KEYSTORE_BASE64`          | `base64 -i durian-release.jks \| pbcopy`      |
+    | `ANDROID_KEYSTORE_PASSWORD`        | The keystore password                         |
+    | `ANDROID_KEY_ALIAS`                | `durian`                                      |
+    | `EXPO_PUBLIC_API_URL`              | Your deployed `https://` backend URL          |
+    | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | The Web OAuth client ID                       |
+
+**Releasing**
 
 ```bash
-npx eas-cli build --platform android --profile production
+# bump "version" and android.versionCode in app.json first
+# (versionCode must increase for phones to update in place), then:
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-Set `EXPO_PUBLIC_API_URL` (and the Google client ID) for the build environment, and register the release signing key's SHA-1 in the Android OAuth client.
+The release appears under **Releases** after a few minutes. You can also run the workflow manually from the **Actions** tab to get the APK as a build artifact.
 
 ## Notes
 

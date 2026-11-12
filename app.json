@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "com.durianhealth.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#166534",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -21,10 +22,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "web": {
