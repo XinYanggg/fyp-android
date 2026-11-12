@@ -16,7 +16,6 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  isServerOnline: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   loginWithGoogle: () => Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
   register: (
@@ -25,7 +24,6 @@ interface AuthContextType {
     password: string
   ) => Promise<{ success: boolean; isVerified?: boolean; message?: string; error?: string }>;
   logout: () => Promise<void>;
-  checkServerStatus: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,20 +32,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isServerOnline, setIsServerOnline] = useState(false);
-
-  const checkServerStatus = async (): Promise<boolean> => {
-    const online = await api.ping();
-    setIsServerOnline(online);
-    return online;
-  };
 
   // Restore stored session on startup
   useEffect(() => {
     const restoreSession = async () => {
       try {
-        await checkServerStatus();
-
         const storedToken = await SecureStore.getItemAsync(TOKEN_KEY);
         const storedUserJson = await SecureStore.getItemAsync(USER_KEY);
 
@@ -70,8 +59,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setUser(data.user);
               await SecureStore.setItemAsync(USER_KEY, JSON.stringify(data.user));
             }
-          } catch {
-            // Server might be offline, keep local user
+          } catch (err: any) {
+            // Token rejected (expired/invalid): drop the session.
+            // Other errors (e.g. network) keep the stored session.
+            if (err?.message === 'Unauthorized') {
+              api.setToken(null);
+              setToken(null);
+              setUser(null);
+              await SecureStore.deleteItemAsync(TOKEN_KEY);
+              await SecureStore.deleteItemAsync(USER_KEY);
+            }
           }
         }
       } catch (err) {
@@ -176,12 +173,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         token,
         isLoading,
-        isServerOnline,
         login,
         loginWithGoogle,
         register,
         logout,
-        checkServerStatus,
       }}
     >
       {children}

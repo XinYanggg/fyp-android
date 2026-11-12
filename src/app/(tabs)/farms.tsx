@@ -86,6 +86,13 @@ export default function FarmsScreen() {
           <RefreshControl refreshing={refreshing || isLoading} onRefresh={onRefresh} colors={[Colors.primary]} />
         }
       >
+        {farms.length === 0 && !isLoading && (
+          <View style={styles.emptyState}>
+            <Trees size={32} color={Colors.primary} />
+            <Text style={styles.emptyTitle}>No orchards yet</Text>
+            <Text style={styles.emptyText}>Tap "Add Farm" to create your first orchard.</Text>
+          </View>
+        )}
         {farms.map((farm) => {
           return (
             <TouchableOpacity
@@ -191,6 +198,21 @@ export default function FarmsScreen() {
 }
 
 const styles = StyleSheet.create({
+  emptyState: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xxl,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.light.text,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: Colors.light.textSecondary,
+    textAlign: 'center',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: Colors.light.background,

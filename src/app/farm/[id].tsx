@@ -45,7 +45,7 @@ export default function FarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { farms, addTree, addMember, removeMember, refreshFarms, isLoading } = useFarms();
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -57,7 +57,7 @@ export default function FarmDetailScreen() {
     }
   };
 
-  const farm = farms.find((f) => f._id === id) || farms[0];
+  const farm = farms.find((f) => f._id === id);
   const trees = farm?.trees || [];
 
   const [filter, setFilter] = useState<'all' | 'healthy' | 'attention'>('all');
@@ -73,8 +73,8 @@ export default function FarmDetailScreen() {
   const [memberError, setMemberError] = useState<string | null>(null);
   const [memberBusy, setMemberBusy] = useState(false);
 
-  // Only the owner can manage members (guests previewing local data can too)
-  const isOwner = !token || farm?.ownerEmail === user?.email;
+  // Only the owner can manage members
+  const isOwner = farm?.ownerEmail === user?.email;
 
   const handleAddMember = async () => {
     const email = memberEmail.trim();

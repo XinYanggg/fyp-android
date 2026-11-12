@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,6 @@ import {
 } from 'lucide-react-native';
 import { useFarms } from '../../context/FarmContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { DISEASE_INFO } from '../../data/mockData';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 import { useRouter } from 'expo-router';
 
@@ -40,6 +39,16 @@ export default function ScanScreen() {
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   const activeFarm = farms.find((f) => f._id === targetFarmId) || selectedFarm || farms[0];
+
+  // Farms load asynchronously: pick sensible defaults once they arrive
+  useEffect(() => {
+    const farm = farms.find((f) => f._id === targetFarmId) || selectedFarm || farms[0];
+    if (!farm) return;
+    if (farm._id !== targetFarmId) setTargetFarmId(farm._id);
+    if (!farm.trees.some((t) => t.id === targetTreeId)) {
+      setTargetTreeId(farm.trees[0]?.id || '');
+    }
+  }, [farms, selectedFarm, targetFarmId, targetTreeId]);
 
   const handlePickCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -89,8 +98,8 @@ export default function ScanScreen() {
     try {
       const diagnosis = await detectDisease(imageUri);
       setResult(diagnosis);
-    } catch {
-      Alert.alert('Analysis Failed', 'Could not process leaf image. Please retry.');
+    } catch (err: any) {
+      Alert.alert('Analysis Failed', err?.message || 'Could not process leaf image. Please retry.');
     } finally {
       setAnalyzing(false);
     }
@@ -102,13 +111,12 @@ export default function ScanScreen() {
       return;
     }
 
-    await saveScan(
-      targetFarmId,
-      targetTreeId,
-      result.disease,
-      result.confidence,
-      imageUri || undefined
-    );
+    try {
+      await saveScan(targetFarmId, targetTreeId, result.disease, result.confidence);
+    } catch (err: any) {
+      Alert.alert('Save Failed', err?.message || 'Could not save the scan. Please retry.');
+      return;
+    }
 
     setSavedSuccess(true);
     Alert.alert(
@@ -129,8 +137,6 @@ export default function ScanScreen() {
     setResult(null);
     setSavedSuccess(false);
   };
-
-  const diseaseDetail = result ? DISEASE_INFO[result.disease] : null;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -236,22 +242,6 @@ export default function ScanScreen() {
                 />
               </View>
             </View>
-
-            {/* Description & Treatment */}
-            {diseaseDetail && (
-              <View style={styles.treatmentSection}>
-                <Text style={styles.sectionSubhead}>Description</Text>
-                <Text style={styles.diseaseDescription}>{diseaseDetail.description}</Text>
-
-                <Text style={[styles.sectionSubhead, { marginTop: Spacing.md }]}>Recommended Protocol</Text>
-                {diseaseDetail.treatment.map((step, idx) => (
-                  <View key={idx} style={styles.treatmentStepRow}>
-                    <CheckCircle2 size={15} color={Colors.primary} style={{ marginTop: 2 }} />
-                    <Text style={styles.treatmentStepText}>{step}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
 
             {/* Save to Tree Flow */}
             <View style={styles.saveSection}>

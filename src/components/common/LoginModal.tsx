@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { LogIn, UserPlus, X, Mail, Lock, User as UserIcon, Server, AlertCircle, CheckCircle2 } from 'lucide-react-native';
+import { LogIn, UserPlus, X, Mail, Lock, User as UserIcon, AlertCircle, CheckCircle2 } from 'lucide-react-native';
 import { GoogleLogo } from './GoogleLogo';
 import { useAuth } from '../../context/AuthContext';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
@@ -27,7 +27,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onClose,
   initialMode = 'login',
 }) => {
-  const { login, loginWithGoogle, register, isServerOnline } = useAuth();
+  const { login, loginWithGoogle, register } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [name, setName] = useState('');
@@ -38,6 +38,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Open on the requested tab each time the modal is shown
+  useEffect(() => {
+    if (visible) {
+      setMode(initialMode);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+    }
+  }, [visible, initialMode]);
 
   const resetForm = () => {
     setName('');
@@ -184,14 +193,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.md }}>
-            {/* Backend Status Pill */}
-            <View style={[styles.statusPill, isServerOnline ? styles.statusPillOnline : styles.statusPillOffline]}>
-              <Server size={13} color={isServerOnline ? Colors.success : Colors.warning} />
-              <Text style={[styles.statusText, { color: isServerOnline ? Colors.success : Colors.warning }]}>
-                {isServerOnline ? 'Next.js Backend Online (:3000)' : 'Backend offline (run npm run dev)'}
-              </Text>
-            </View>
-
             {/* Error Message */}
             {errorMsg && (
               <View style={styles.errorBox}>
@@ -402,25 +403,6 @@ const styles = StyleSheet.create({
   },
   tabButtonTextActive: {
     color: Colors.primary,
-  },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    marginBottom: Spacing.md,
-  },
-  statusPillOnline: {
-    backgroundColor: Colors.successLight,
-  },
-  statusPillOffline: {
-    backgroundColor: Colors.warningLight,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
   errorBox: {
     flexDirection: 'row',

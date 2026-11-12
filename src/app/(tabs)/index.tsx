@@ -18,23 +18,19 @@ import {
   ChevronRight,
   Sparkles,
   MapPin,
-  Database,
-  User as UserIcon,
 } from 'lucide-react-native';
 import { useFarms } from '../../context/FarmContext';
 import { useAuth } from '../../context/AuthContext';
 import { MetricCard } from '../../components/common/MetricCard';
 import { StatusBadge } from '../../components/common/StatusBadge';
-import { LoginModal } from '../../components/common/LoginModal';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { farms, selectedFarm, setSelectedFarm, refreshFarms, isLoading, isLiveBackend } = useFarms();
+  const { farms, selectedFarm, setSelectedFarm, refreshFarms, isLoading } = useFarms();
   const { user } = useAuth();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [loginModalVisible, setLoginModalVisible] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -73,186 +69,177 @@ export default function DashboardScreen() {
 
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => {
-              if (user) {
-                router.push('/(tabs)/profile');
-              } else {
-                setLoginModalVisible(true);
-              }
-            }}
+            onPress={() => router.push('/(tabs)/profile')}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
             style={styles.avatarPill}
           >
-            {user ? (
-              <Text style={styles.avatarText}>
-                {user.name ? user.name.slice(0, 2).toUpperCase() : 'DH'}
-              </Text>
-            ) : (
-              <UserIcon size={18} color={Colors.primary} />
-            )}
+            <Text style={styles.avatarText}>
+              {user?.name ? user.name.slice(0, 2).toUpperCase() : 'DH'}
+            </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Live Backend Connection Indicator */}
-        <View style={styles.syncRow}>
-          <View style={[styles.syncDot, isLiveBackend ? styles.syncDotActive : styles.syncDotMock]} />
-          <Text style={styles.syncText}>
-            {isLiveBackend
-              ? 'Synced with Next.js Backend & MongoDB'
-              : user
-              ? 'Offline mode (pull down to refresh backend)'
-              : 'Guest mode · '}
-          </Text>
-          {!user && (
-            <TouchableOpacity onPress={() => setLoginModalVisible(true)}>
-              <Text style={styles.syncLoginLink}>Log In</Text>
+        {farms.length === 0 && !isLoading && (
+          <View style={[styles.emptyCard, Shadows.sm]}>
+            <Trees size={32} color={Colors.primary} />
+            <Text style={styles.emptyTitle}>No orchards yet</Text>
+            <Text style={styles.emptyText}>
+              Create your first orchard to start registering trees and scanning leaves.
+            </Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => router.push('/(tabs)/farms')}
+              style={styles.emptyButton}
+            >
+              <Text style={styles.emptyButtonText}>Go to My Orchards</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
 
-        {/* Farm Selector Pill */}
-        <View style={styles.farmSelectorContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.farmPillsRow}>
-            {farms.map((farm) => {
-              const isSelected = farm._id === currentFarm?._id;
-              return (
-                <TouchableOpacity
-                  key={farm._id}
-                  onPress={() => setSelectedFarm(farm)}
-                    style={[
-                    styles.farmPill,
-                    isSelected && styles.farmPillActive,
-                    ]}
-                  >
-                  <MapPin size={13} color={isSelected ? '#ffffff' : Colors.light.textSecondary} style={{ marginRight: 4 }} />
-                  <Text style={[styles.farmPillText, isSelected && styles.farmPillTextActive]}>
-                    {farm.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
+        {currentFarm && (
+          <>
+          {/* Farm Selector Pill */}
+          <View style={styles.farmSelectorContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.farmPillsRow}>
+              {farms.map((farm) => {
+                const isSelected = farm._id === currentFarm?._id;
+                return (
+                  <TouchableOpacity
+                    key={farm._id}
+                    onPress={() => setSelectedFarm(farm)}
+                      style={[
+                      styles.farmPill,
+                      isSelected && styles.farmPillActive,
+                      ]}
+                    >
+                    <MapPin size={13} color={isSelected ? '#ffffff' : Colors.light.textSecondary} style={{ marginRight: 4 }} />
+                    <Text style={[styles.farmPillText, isSelected && styles.farmPillTextActive]}>
+                      {farm.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
 
-        {/* Health Overview Banner */}
-        <View style={[styles.overviewCard, Shadows.md]}>
-          <View style={styles.overviewHeader}>
-            <View>
-              <Text style={styles.overviewLocation}>{currentFarm?.location || 'Pahang, Malaysia'}</Text>
-              <Text style={styles.overviewFarmName}>{currentFarm?.name || 'Active Farm'}</Text>
+          {/* Health Overview Banner */}
+          <View style={[styles.overviewCard, Shadows.md]}>
+            <View style={styles.overviewHeader}>
+              <View>
+                <Text style={styles.overviewLocation}>{currentFarm?.location}</Text>
+                <Text style={styles.overviewFarmName}>{currentFarm?.name}</Text>
+              </View>
+              <View style={styles.healthScoreContainer}>
+                <Text style={styles.healthScoreValue}>{currentFarm?.healthPercentage || '100%'}</Text>
+                <Text style={styles.healthScoreLabel}>Farm Health</Text>
+              </View>
             </View>
-            <View style={styles.healthScoreContainer}>
-              <Text style={styles.healthScoreValue}>{currentFarm?.healthPercentage || '100%'}</Text>
-              <Text style={styles.healthScoreLabel}>Farm Health</Text>
+
+            {/* Health Progress Bar */}
+            <View style={styles.progressBarBg}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: (currentFarm?.healthPercentage || '100%') as any },
+                ]}
+              />
+            </View>
+
+            <View style={styles.overviewFooter}>
+              <Text style={styles.lastScanText}>
+                Last scanned: <Text style={{ fontWeight: '600', color: Colors.light.text }}>{currentFarm?.lastScan || 'N/A'}</Text>
+              </Text>
+              <TouchableOpacity
+                onPress={() => router.push(`/farm/${currentFarm?._id}` as any)}
+                style={styles.viewFarmLink}
+              >
+                <Text style={styles.viewFarmLinkText}>View Orchard</Text>
+                <ChevronRight size={14} color={Colors.primary} />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Health Progress Bar */}
-          <View style={styles.progressBarBg}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: (currentFarm?.healthPercentage || '100%') as any },
-              ]}
+          {/* Quick Action: AI Disease Scan */}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push('/(tabs)/scan' as any)}
+            style={[styles.scanActionBanner, Shadows.sm]}
+          >
+            <View style={styles.scanActionLeft}>
+              <View style={styles.scanIconBg}>
+                <ScanLine size={24} color="#ffffff" strokeWidth={2.5} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.bannerTagRow}>
+                  <Sparkles size={13} color={Colors.accent} style={{ marginRight: 4 }} />
+                  <Text style={styles.bannerTagText}>AI Computer Vision</Text>
+                </View>
+                <Text style={styles.scanActionTitle}>Scan a Leaf Now</Text>
+                <Text style={styles.scanActionSubtitle}>Diagnose leaf spot, algal rust, and blights instantly</Text>
+              </View>
+            </View>
+            <ChevronRight size={20} color={Colors.light.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Metrics Grid */}
+          <View style={styles.metricsGrid}>
+            <MetricCard
+              label="Total Trees"
+              value={trees.length}
+              subValue="Registered digital twins"
+              icon={<Trees size={18} color={Colors.primary} />}
+              accentColor={Colors.primary}
+            />
+            <MetricCard
+              label="Healthy Trees"
+              value={healthyTrees}
+              subValue={`${trees.length ? Math.round((healthyTrees / trees.length) * 100) : 100}% optimal condition`}
+              icon={<CheckCircle size={18} color={Colors.success} />}
+              accentColor={Colors.success}
+            />
+            <MetricCard
+              label="Attention Needed"
+              value={alertTrees}
+              subValue={alertTrees > 0 ? 'Requires fungicide/pruning' : 'All foliage clean'}
+              icon={<AlertTriangle size={18} color={alertTrees > 0 ? Colors.danger : Colors.light.textMuted} />}
+              accentColor={alertTrees > 0 ? Colors.danger : Colors.light.textMuted}
             />
           </View>
 
-          <View style={styles.overviewFooter}>
-            <Text style={styles.lastScanText}>
-              Last scanned: <Text style={{ fontWeight: '600', color: Colors.light.text }}>{currentFarm?.lastScan || 'N/A'}</Text>
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push(`/farm/${currentFarm?._id}` as any)}
-              style={styles.viewFarmLink}
-            >
-              <Text style={styles.viewFarmLinkText}>View Orchard</Text>
-              <ChevronRight size={14} color={Colors.primary} />
+          {/* Recent Trees Status Section */}
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Recent Tree Statuses</Text>
+            <TouchableOpacity onPress={() => router.push(`/farm/${currentFarm?._id}` as any)}>
+              <Text style={styles.sectionActionText}>See all ({trees.length})</Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Quick Action: AI Disease Scan */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => router.push('/(tabs)/scan' as any)}
-          style={[styles.scanActionBanner, Shadows.sm]}
-        >
-          <View style={styles.scanActionLeft}>
-            <View style={styles.scanIconBg}>
-              <ScanLine size={24} color="#ffffff" strokeWidth={2.5} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.bannerTagRow}>
-                <Sparkles size={13} color={Colors.accent} style={{ marginRight: 4 }} />
-                <Text style={styles.bannerTagText}>AI Computer Vision</Text>
-              </View>
-              <Text style={styles.scanActionTitle}>Scan a Leaf Now</Text>
-              <Text style={styles.scanActionSubtitle}>Diagnose leaf spot, algal rust, and blights instantly</Text>
-            </View>
+          <View style={styles.treesList}>
+            {trees.slice(0, 4).map((tree) => (
+              <TouchableOpacity
+                key={tree.id}
+                activeOpacity={0.7}
+                onPress={() => router.push(`/farm/${currentFarm?._id}` as any)}
+                style={[styles.treeCard, Shadows.sm]}
+              >
+                <View style={styles.treeLeft}>
+                  <View style={styles.treeIdBadge}>
+                    <Text style={styles.treeIdText}>{tree.id}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.treeCultivar}>{tree.cultivar}</Text>
+                    <Text style={styles.treeScanTime}>Last scan: {tree.lastScan}</Text>
+                  </View>
+                </View>
+                <StatusBadge status={tree.currentDisease} />
+              </TouchableOpacity>
+            ))}
           </View>
-          <ChevronRight size={20} color={Colors.light.textSecondary} />
-        </TouchableOpacity>
-
-        {/* Metrics Grid */}
-        <View style={styles.metricsGrid}>
-          <MetricCard
-            label="Total Trees"
-            value={trees.length}
-            subValue="Registered digital twins"
-            icon={<Trees size={18} color={Colors.primary} />}
-            accentColor={Colors.primary}
-          />
-          <MetricCard
-            label="Healthy Trees"
-            value={healthyTrees}
-            subValue={`${trees.length ? Math.round((healthyTrees / trees.length) * 100) : 100}% optimal condition`}
-            icon={<CheckCircle size={18} color={Colors.success} />}
-            accentColor={Colors.success}
-          />
-          <MetricCard
-            label="Attention Needed"
-            value={alertTrees}
-            subValue={alertTrees > 0 ? 'Requires fungicide/pruning' : 'All foliage clean'}
-            icon={<AlertTriangle size={18} color={alertTrees > 0 ? Colors.danger : Colors.light.textMuted} />}
-            accentColor={alertTrees > 0 ? Colors.danger : Colors.light.textMuted}
-          />
-        </View>
-
-        {/* Recent Trees Status Section */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Recent Tree Statuses</Text>
-          <TouchableOpacity onPress={() => router.push(`/farm/${currentFarm?._id}` as any)}>
-            <Text style={styles.sectionActionText}>See all ({trees.length})</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.treesList}>
-          {trees.slice(0, 4).map((tree) => (
-            <TouchableOpacity
-              key={tree.id}
-              activeOpacity={0.7}
-              onPress={() => router.push(`/farm/${currentFarm?._id}` as any)}
-              style={[styles.treeCard, Shadows.sm]}
-            >
-              <View style={styles.treeLeft}>
-                <View style={styles.treeIdBadge}>
-                  <Text style={styles.treeIdText}>{tree.id}</Text>
-                </View>
-                <View>
-                  <Text style={styles.treeCultivar}>{tree.cultivar}</Text>
-                  <Text style={styles.treeScanTime}>Last scan: {tree.lastScan}</Text>
-                </View>
-              </View>
-              <StatusBadge status={tree.currentDisease} />
-            </TouchableOpacity>
-          ))}
-        </View>
+          </>
+        )}
       </ScrollView>
 
-      {/* Login Modal */}
-      <LoginModal
-        visible={loginModalVisible}
-        onClose={() => setLoginModalVisible(false)}
-      />
     </SafeAreaView>
   );
 }
@@ -302,34 +289,37 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.primaryDark,
   },
-  syncRow: {
-    flexDirection: 'row',
+  emptyCard: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
     alignItems: 'center',
-    marginBottom: Spacing.md,
-    marginTop: 4,
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
   },
-  syncDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 6,
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.light.text,
   },
-  syncDotActive: {
-    backgroundColor: Colors.success,
-  },
-  syncDotMock: {
-    backgroundColor: Colors.accent,
-  },
-  syncText: {
-    fontSize: 11,
+  emptyText: {
+    fontSize: 13,
     color: Colors.light.textSecondary,
-    fontWeight: '500',
+    textAlign: 'center',
   },
-  syncLoginLink: {
-    fontSize: 11,
-    color: Colors.primary,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
+  emptyButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    marginTop: Spacing.sm,
+  },
+  emptyButtonText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 13,
   },
   farmSelectorContainer: {
     marginBottom: Spacing.md,

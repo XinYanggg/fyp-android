@@ -6,8 +6,8 @@ import { Farm, Tree, User } from '../types';
 WebBrowser.maybeCompleteAuthSession();
 
 /**
- * Android Studio Emulator uses 10.0.2.2 to access host machine's localhost:3000.
- * iOS Simulator or web uses localhost:3000.
+ * Backend URL comes from EXPO_PUBLIC_API_URL. When it isn't set (local dev only),
+ * the Android emulator reaches the host machine at 10.0.2.2:3000.
  */
 const DEFAULT_HOST = process.env.EXPO_PUBLIC_API_URL!;
 
@@ -82,27 +82,9 @@ class ApiService {
       return data as T;
     } catch (err: any) {
       if (err.message === 'Network request failed') {
-        throw new Error(`Cannot connect to server at ${this.baseUrl}. Make sure your Next.js server is running (npm run dev).`);
+        throw new Error('Cannot connect to the server. Please check your internet connection and try again.');
       }
       throw err;
-    }
-  }
-
-  /**
-   * Health / ping check
-   */
-  public async ping(): Promise<boolean> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(`${this.baseUrl}/api/mobile/me`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      // If it responded (even 401 Unauthorized), the server is alive!
-      return res.status === 200 || res.status === 401;
-    } catch {
-      return false;
     }
   }
 
@@ -171,6 +153,26 @@ class ApiService {
       body: JSON.stringify({ name, location }),
     });
     return data.farm;
+  }
+
+  /**
+   * Add a member (by email) to a farm. Owner only.
+   */
+  public async addMember(farmId: string, email: string): Promise<{ farm: Farm }> {
+    return this.request<{ farm: Farm }>('/api/farm/member/add', {
+      method: 'POST',
+      body: JSON.stringify({ farmId, email }),
+    });
+  }
+
+  /**
+   * Remove a member from a farm. Owner only.
+   */
+  public async removeMember(farmId: string, email: string): Promise<{ farm: Farm }> {
+    return this.request<{ farm: Farm }>('/api/farm/member/remove', {
+      method: 'POST',
+      body: JSON.stringify({ farmId, email }),
+    });
   }
 
   /**
