@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { File } from 'expo-file-system';
 import { Farm, Tree, User } from '../types';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -189,16 +190,10 @@ class ApiService {
    * Detect leaf disease via Next.js proxy -> Python AI model
    */
   public async detectDisease(imageUri: string): Promise<{ prediction: string; confidence: number }> {
+    // Expo's fetch doesn't accept React Native's { uri, name, type } form parts;
+    // a File from expo-file-system is a Blob-compatible part it can upload.
     const formData = new FormData();
-    const filename = imageUri.split('/').pop() || 'leaf.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : 'image/jpeg';
-
-    formData.append('file', {
-      uri: imageUri,
-      name: filename,
-      type,
-    } as any);
+    formData.append('file', new File(imageUri) as any);
 
     return this.request<{ prediction: string; confidence: number }>('/api/scan/detect', {
       method: 'POST',

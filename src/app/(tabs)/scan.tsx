@@ -20,6 +20,7 @@ import {
   Sparkles,
   Save,
   CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { useFarms } from '../../context/FarmContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
@@ -106,6 +107,10 @@ export default function ScanScreen() {
   };
 
   const handleSaveResult = async () => {
+    if (result && Math.round(result.confidence * 100) <= 0) {
+      Alert.alert('Cannot Save', 'The model returned 0% confidence. Please retake a clearer photo of the leaf.');
+      return;
+    }
     if (!result || !targetFarmId || !targetTreeId) {
       Alert.alert('Selection Missing', 'Please select both a farm and a target tree.');
       return;
@@ -137,6 +142,9 @@ export default function ScanScreen() {
     setResult(null);
     setSavedSuccess(false);
   };
+
+  // A result that displays as 0% confidence is not a usable diagnosis
+  const isZeroConfidence = !!result && Math.round(result.confidence * 100) <= 0;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -284,11 +292,24 @@ export default function ScanScreen() {
                 })}
               </ScrollView>
 
+              {isZeroConfidence && (
+                <View style={styles.warningBox}>
+                  <AlertTriangle size={16} color={Colors.danger} />
+                  <Text style={styles.warningText}>
+                    0% confidence: the model could not recognise this leaf. Retake a clearer photo to save a result.
+                  </Text>
+                </View>
+              )}
+
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={handleSaveResult}
-                disabled={savedSuccess}
-                style={[styles.saveBtn, savedSuccess && styles.saveBtnSuccess]}
+                disabled={savedSuccess || isZeroConfidence}
+                style={[
+                  styles.saveBtn,
+                  savedSuccess && styles.saveBtnSuccess,
+                  isZeroConfidence && styles.saveBtnDisabled,
+                ]}
               >
                 <Save size={18} color="#ffffff" />
                 <Text style={styles.saveBtnText}>
@@ -573,6 +594,23 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     gap: 8,
     marginTop: Spacing.sm,
+  },
+  saveBtnDisabled: {
+    backgroundColor: Colors.light.border,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.dangerLight,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  warningText: {
+    flex: 1,
+    color: Colors.danger,
+    fontSize: 12,
+    fontWeight: '600',
   },
   saveBtnSuccess: {
     backgroundColor: Colors.success,
