@@ -23,6 +23,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check required secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS EXPO_PUBLIC_API_URL EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Secret $name is empty or missing. Add it under Settings > Secrets and variables > Actions > Secrets (not Variables)."
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then exit 1; fi
+
+          # Verify the keystore decodes and the password/alias are correct
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/check.jks"
+          keytool -list -keystore "$RUNNER_TEMP/check.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" > /dev/null \
+            || { echo "::error::Keystore could not be opened. Check ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS."; exit 1; }
+          rm -f "$RUNNER_TEMP/check.jks"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
