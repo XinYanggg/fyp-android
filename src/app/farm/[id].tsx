@@ -32,15 +32,6 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { Tree } from '../../types';
 import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 
-const POPULAR_CULTIVARS = [
-  'Musang King (D197)',
-  'Black Thorn (D200)',
-  'D24 (Sultan)',
-  'IOI / Hasmuk (D168)',
-  'Red Prawn (D175)',
-  'Teka (D198)',
-];
-
 export default function FarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -65,7 +56,7 @@ export default function FarmDetailScreen() {
   const [selectedTreeHistory, setSelectedTreeHistory] = useState<Tree | null>(null);
 
   const [newTreeId, setNewTreeId] = useState('');
-  const [newCultivar, setNewCultivar] = useState(POPULAR_CULTIVARS[0]);
+  const [newCultivar, setNewCultivar] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [membersModalVisible, setMembersModalVisible] = useState(false);
@@ -120,11 +111,12 @@ export default function FarmDetailScreen() {
   });
 
   const handleCreateTree = async () => {
-    if (!newTreeId.trim() || !farm) return;
+    if (!newTreeId.trim() || !newCultivar.trim() || !farm) return;
     setIsSubmitting(true);
     try {
-      await addTree(farm._id, newTreeId.trim(), newCultivar);
+      await addTree(farm._id, newTreeId.trim(), newCultivar.trim());
       setNewTreeId('');
+      setNewCultivar('');
       setAddTreeModalVisible(false);
       Alert.alert('Tree Twin Registered', `Tree ${newTreeId.trim().toUpperCase()} has been saved to this orchard.`);
     } catch (err: any) {
@@ -286,28 +278,22 @@ export default function FarmDetailScreen() {
             />
 
             <Text style={styles.inputLabel}>Cultivar / Variety</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.md }}>
-              {POPULAR_CULTIVARS.map((cultivar) => {
-                const isSelected = cultivar === newCultivar;
-                return (
-                  <TouchableOpacity
-                    key={cultivar}
-                    onPress={() => setNewCultivar(cultivar)}
-                    style={[styles.cultivarChip, isSelected && styles.cultivarChipActive]}
-                  >
-                    <Text style={[styles.cultivarChipText, isSelected && styles.cultivarChipTextActive]}>
-                      {cultivar}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
+            <TextInput
+              placeholder="e.g. Musang King, D24"
+              placeholderTextColor={Colors.light.textMuted}
+              value={newCultivar}
+              onChangeText={setNewCultivar}
+              style={styles.textInput}
+            />
 
             <TouchableOpacity
               activeOpacity={0.8}
               onPress={handleCreateTree}
-              disabled={isSubmitting || !newTreeId.trim()}
-              style={[styles.submitButton, !newTreeId.trim() && styles.submitButtonDisabled]}
+              disabled={isSubmitting || !newTreeId.trim() || !newCultivar.trim()}
+              style={[
+                styles.submitButton,
+                (!newTreeId.trim() || !newCultivar.trim()) && styles.submitButtonDisabled,
+              ]}
             >
               <Text style={styles.submitButtonText}>
                 {isSubmitting ? 'Registering Tree...' : 'Register Tree in Twin'}

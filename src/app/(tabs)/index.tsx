@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -74,9 +75,17 @@ export default function DashboardScreen() {
             accessibilityLabel="Open profile"
             style={styles.avatarPill}
           >
-            <Text style={styles.avatarText}>
-              {user?.name ? user.name.slice(0, 2).toUpperCase() : 'DH'}
-            </Text>
+            {user?.image ? (
+              <Image
+                source={{ uri: user.image }}
+                style={styles.avatarImage}
+                accessibilityLabel={user.name || 'User avatar'}
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {user?.name ? user.name.slice(0, 2).toUpperCase() : 'DH'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -283,6 +292,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: Colors.primary,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
   },
   avatarText: {
     fontSize: 14,
