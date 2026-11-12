@@ -15,6 +15,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: Prod
     timeout-minutes: 60
     env:
       EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
@@ -40,9 +41,18 @@ jobs:
 
           # Verify the keystore decodes and the password/alias are correct
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/check.jks"
-          keytool -list -keystore "$RUNNER_TEMP/check.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" > /dev/null \
-            || { echo "::error::Keystore could not be opened. Check ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS."; exit 1; }
-          rm -f "$RUNNER_TEMP/check.jks"
+          if ! keytool -list -keystore "$RUNNER_TEMP/check.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" > "$RUNNER_TEMP/keytool.txt" 2>&1; then
+            echo "::error::Keystore could not be opened. Wrong ANDROID_KEYSTORE_PASSWORD, or ANDROID_KEYSTORE_BASE64 is not a valid keystore."
+            exit 1
+          fi
+          # Aliases are not secret; show them so a mismatch is easy to spot
+          echo "Aliases found in keystore:"
+          grep -E "PrivateKeyEntry|trustedCertEntry" "$RUNNER_TEMP/keytool.txt" | cut -d, -f1 || true
+          if ! grep -qi "^$ANDROID_KEY_ALIAS," "$RUNNER_TEMP/keytool.txt"; then
+            echo "::error::Alias '$ANDROID_KEY_ALIAS' not found in the keystore. Set ANDROID_KEY_ALIAS to one of the aliases listed above."
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/check.jks" "$RUNNER_TEMP/keytool.txt"
 
       - uses: actions/setup-node@v4
         with:
